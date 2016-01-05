@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<script src="video-scroll.0.2.0.min.js"></script>
+<link href="css/main.css" rel="stylesheet">
+
+<!-- Shaders -->
+<!-- Render the framebuffer to the screen -->
+<script id="texture-vert" type="x-shader/x-vertex">
+    attribute vec3 aVertex;
+    attribute vec3 aNormal;
+    attribute vec2 aTexCoord;
+
+    uniform mat4 uModelviewMatrix;
+    uniform mat4 uProjectionMatrix;
+
+    varying vec2 vTexCoord;
+
+    void main(void) {
+        gl_Position = uProjectionMatrix * uModelviewMatrix * vec4(aVertex, 1.0);
+        vTexCoord = aTexCoord;
+    }
+</script>
+
+<script id="texture-frag" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    uniform sampler2D uSampler;
+
+    varying vec2 vTexCoord;
+
+    void main(void) {
+        gl_FragColor = texture2D(uSampler, vTexCoord);
+    }
+</script>
+
+<script id="shift-down-vert" type="x-shader/x-vertex">
+    attribute vec3 aVertex;
+    attribute vec2 aTexCoord;
+
+    uniform mat4 uModelviewMatrix;
+    uniform mat4 uProjectionMatrix;
+
+    varying vec2 vTexCoord;
+
+    void main(void) {
+        gl_Position = uProjectionMatrix * uModelviewMatrix * vec4(aVertex, 1.0);
+        vTexCoord = aTexCoord;
+    }
+</script>
+
+<script id="shift-down-frag" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    uniform sampler2D uSampler;
+    uniform float uOffset;
+
+    varying vec2 vTexCoord;
+
+    void main(void) {
+        gl_FragColor = texture2D(uSampler, vTexCoord + vec2(0, uOffset));
+    }
+</script> 
+
+<script id="output-vert" type="x-shader/x-vertex">
+    attribute vec3 aVertex;
+    attribute vec3 aNormal;
+    attribute vec2 aTexCoord;
+
+    uniform mat4 uModelviewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uNormalMatrix;
+    uniform float uFrameCount;
+
+    varying vec2 vTexCoord;
+    varying vec3 vNormal;
+
+    float noise(in float n) {
+        return fract(sin(dot(vec2(n, n) ,vec2(12.9898,78.233))) * 43758.5453);
+    }
+
+    float smoothedNoise(in float n) {
+        return noise(n)/2.0  +  noise(n-1.0)/4.0  +  noise(n+1.0)/4.0;
+    }
+
+    float interpolate(in float a, in float b, in float x) {
+        float ft = x * 3.1415927;
+        float f = (1.0 - cos(ft)) * 0.5;
+        return  a * (1.0 - f) + b * f;
+    }
+
+    float interpolatedNoise(in float n) {
+        float floorN = floor(n);
+        float fractN = n - floorN;
+
+        float v1 = smoothedNoise(floorN);
+        float v2 = smoothedNoise(floorN + 1.0);
+
+        return interpolate(v1, v2, fractN);
+    }
+
+    void main(void) {
+        vNormal = normalize(uNormalMatrix * vec4(aNormal, 1.0)).xyz;
+
+        vec4 vertex = vec4(aVertex, 1.0);
+        vertex.x *= interpolatedNoise(vertex.y + uFrameCount * 0.03) + 0.5;
+
+        gl_Position = uProjectionMatrix * uModelviewMatrix * vertex;
+        vTexCoord = aTexCoord;
+    }
+
+</script>
+
+<script id="output-frag" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+    uniform sampler2D uSampler;
+
+    varying vec2 vTexCoord;
+    varying vec3 vNormal;
+
+    void main(void) {
+        float brightness = 0.5;
+        float nl = max(dot(vNormal, vec3(0, 0, -1)), 0.0);
+        brightness += nl + pow(nl, 4.0);
+
+        vec4 color = texture2D(uSampler, vTexCoord);
+        color.rgb *= brightness;
+        gl_FragColor = color;
+    }
+</script>
+
+<script id="basic-renderer-vert" type="x-shader/x-vertex">
+    attribute vec3 aVertex;
+    attribute vec4 aColor;
+
+    uniform mat4 uModelviewMatrix;
+    uniform mat4 uProjectionMatrix;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_Position = uProjectionMatrix * uModelviewMatrix * vec4(aVertex, 1.0);
+        vColor = aColor;
+    }
+</script>
+
+<script id="basic-renderer-frag" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+
+<video id="video" autobuffer="true" preload="auto" src="videos/chapter1.ogv" autoplay="true" style="display: none"></video>
+<canvas id="canvas"></canvas>
+
+
